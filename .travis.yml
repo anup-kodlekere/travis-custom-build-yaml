@@ -51,7 +51,7 @@ jobs:
       name: Node Build on s390x
       arch: s390x
     - &docker-build
-      if: type = push
+      if: type = pull-request
       name: Docker build (Alpine) on amd64
       arch: amd64
       env: DIST=alpine
@@ -83,7 +83,7 @@ jobs:
     - &build-and-push-next
       stage: Build & Publish 'next'
       name: Build & Publish image on amd64 
-      if: type = push
+      if: type = pull-request
       arch: amd64
       script: 
       - |
