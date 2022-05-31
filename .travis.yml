@@ -2,9 +2,11 @@ jobs:
   include:
     - stage: "Tests"                
       name: "Unit Tests"
+      env: ONE
       arch: ppc64le
       script: echo "unit"
     - stage: deploy
       name: "Deploy to GCP"
       arch: ppc64le
+      env: TWO
       script: echo "deploy"
