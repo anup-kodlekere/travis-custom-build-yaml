@@ -40,7 +40,7 @@ jobs:
     - &node-build
       stage: PR Check
       name: Node Build on amd64
-      if: type = push
+      if: type = pull-request
       arch: amd64
       install: skip
       script: echo "yarn"
@@ -51,7 +51,7 @@ jobs:
       name: Node Build on s390x
       arch: s390x
     - &docker-build
-      if: type = pull_request 
+      if: type = push
       name: Docker build (Alpine) on amd64
       arch: amd64
       env: DIST=alpine
