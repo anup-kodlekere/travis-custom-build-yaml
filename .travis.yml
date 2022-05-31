@@ -40,7 +40,7 @@ jobs:
     - &node-build
       stage: PR Check
       name: Node Build on amd64
-      if: type = pull_request 
+      if: type = push
       arch: amd64
       install: skip
       script: echo "yarn"
