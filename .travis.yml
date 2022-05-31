@@ -1,12 +1,144 @@
+# Che-Theia workflow
+
+dist: focal
+os: linux
+cache: false
+git:
+  depth: false 
+
+language: node_js
+node_js: "12"
+
+install:
+  - echo "$DOCKER_PASSWORD" 
+
+env: 
+  global:
+  - TAG=next
+  - TRAVIS_TAG=travis
+
+before_script:
+  - |
+    if [[ "${TRAVIS_CPU_ARCH}" == "ppc64le" || "${TRAVIS_CPU_ARCH}" == "arm64" ]]
+    then
+      # fix cpu count to avoid OOM failure
+      cat /proc/stat > /tmp/stat
+      sed -i '/^cpu[4-9]/d' /tmp/stat
+      sed -i '/^cpu[0-9][0-9]/d' /tmp/stat
+      sudo mount --bind /tmp/stat /proc/stat
+    fi
+
 jobs:
-  include:
-    - stage: "Tests"                
-      name: "Unit Tests"
-      env: ONE
+  fast_finish: true
+  allow_failures:
+   - if: type = pull_request
+     arch: ppc64le
+   - if: type = pull_request
+     arch: s390x
+   - stage: Release che-theia
+  include: 
+    - &node-build
+      stage: PR Check
+      name: Node Build on amd64
+      if: type = pull_request 
+      arch: amd64
+      install: skip
+      script: echo "yarn"
+    - <<: *node-build
+      name: Node Build on ppc64le
       arch: ppc64le
-      script: echo "unit"
-    - stage: deploy
-      name: "Deploy to GCP"
+    - <<: *node-build
+      name: Node Build on s390x
+      arch: s390x
+    - &docker-build
+      if: type = pull_request 
+      name: Docker build (Alpine) on amd64
+      arch: amd64
+      env: DIST=alpine
+      install: skip
+      script:
+      - |
+        set -e
+        echo "build"
+    - <<: *docker-build
+      name: Docker build (Alpine) on ppc64le
       arch: ppc64le
-      env: TWO
-      script: echo "deploy"
+    - <<: *docker-build
+      name: Docker build (Alpine) on s390x
+      arch: s390x
+    - <<: *docker-build
+      name: Docker build (ubi8) on amd64
+      arch: amd64
+      env: DIST=ubi8
+      script: bash -c "exit 1"
+    - <<: *docker-build
+      name: Docker build (ubi8) on ppc64le
+      arch: ppc64le
+      env: DIST=ubi8
+    - <<: *docker-build
+      name: Docker build (ubi8) on s390x
+      arch: s390x
+      env: DIST=ubi8
+
+    - &build-and-push-next
+      stage: Build & Publish 'next'
+      name: Build & Publish image on amd64 
+      if: type = push
+      arch: amd64
+      script: 
+      - |
+        set -e
+        echo "build next"
+    - <<: *build-and-push-next
+      arch: ppc64le
+      name: Build & Publish image on ppc64le
+    - <<: *build-and-push-next
+      arch: s390x
+      name: Build & Publish image on s390x
+
+    - stage: Publish multiarch image with 'next' tag
+      if: type = push AND branch = master
+      name: Publish multiarch image with next tag
+      script: echo "publish multiarch"
+
+    - &check-a-theia-branch
+      stage: Check a Theia branch
+      name: Build an image against Theia branch on amd64
+      arch: amd64
+      if: env(THEIA_GITHUB_REPO) AND env(THEIA_BRANCH)
+      script:
+      - |
+        set -e
+        echo "check branch"
+    - <<: *check-a-theia-branch
+      arch: ppc64le
+      name: Build an image against Theia branch on ppc64le
+    - <<: *check-a-theia-branch
+      arch: s390x
+      name: Build an image against Theia branch on s390x
+    
+    #Release Workflow
+    - &release-che-theia
+      stage: Release che-theia
+      name: Build and publish image on amd64
+      if: type = api AND env(TAG) IS present AND env(TAG) != "next"
+      arch: amd64
+      script:
+      - |  
+        echo "build release image"
+    - <<: *release-che-theia
+      arch: ppc64le 
+      name: Build and publish image on ppc64le
+    - <<: *release-che-theia
+      arch: s390x
+      name: Build and publish image on s390x
+
+    - stage: Publish multiarch image 
+      if: type = api AND env(TAG) IS present AND env(TAG) != "next"
+      script: echo "publish multi-arch image"
+      after_success:
+       - |
+         echo "success"
+      after_failure:
+       - |
+         echo "fail"
