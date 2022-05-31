@@ -121,7 +121,7 @@ jobs:
     - &release-che-theia
       stage: Release che-theia
       name: Build and publish image on amd64
-      if: type = api AND env(TAG) IS present AND env(TAG) != "next"
+      if: type = api AND env(TAG) IS present AND env(TAG) = "next"
       arch: amd64
       script:
       - |  
